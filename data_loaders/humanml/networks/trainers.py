@@ -117,94 +117,94 @@ class DecompTrainerV3(object):
         return checkpoint['ep'], checkpoint['total_it']
 
     def train(self, train_dataloader, val_dataloader, plot_eval):
-        self.movement_enc.to(self.device)
-        self.movement_dec.to(self.device)
+      self.movement_enc.to(self.device)
+      self.movement_dec.to(self.device)
 
-        self.opt_movement_enc = optim.Adam(self.movement_enc.parameters(), lr=self.opt.lr)
-        self.opt_movement_dec = optim.Adam(self.movement_dec.parameters(), lr=self.opt.lr)
+      self.opt_movement_enc = optim.Adam(self.movement_enc.parameters(), lr=self.opt.lr)
+      self.opt_movement_dec = optim.Adam(self.movement_dec.parameters(), lr=self.opt.lr)
 
-        epoch = 0
-        it = 0
+      epoch = 0
+      it = 0
 
-        if self.opt.is_continue:
-            model_dir = pjoin(self.opt.model_dir, 'latest.tar')
-            epoch, it = self.resume(model_dir)
+      if self.opt.is_continue:
+          model_dir = pjoin(self.opt.model_dir, 'latest.tar')
+          epoch, it = self.resume(model_dir)
 
-        start_time = time.time()
-        total_iters = self.opt.max_epoch * len(train_dataloader)
-        print('Iters Per Epoch, Training: %04d, Validation: %03d' % (len(train_dataloader), len(val_dataloader)))
+      start_time = time.time()
+      total_iters = self.opt.max_epoch * len(train_dataloader)
+      print('Iters Per Epoch, Training: %04d, Validation: %03d' % (len(train_dataloader), len(val_dataloader)))
+      val_loss = 0
+      logs = OrderedDict()
+      while epoch < self.opt.max_epoch:
+        # time0 = time.time()
+        for i, batch_data in enumerate(train_dataloader):
+            self.movement_dec.train()
+            self.movement_enc.train()
+
+            # time1 = time.time()
+            # print('DataLoader Time: %.5f s'%(time1-time0) )
+            self.forward(batch_data)
+            # time2 = time.time()
+            # print('Forward Time: %.5f s'%(time2-time1))
+            log_dict = self.update()
+            # time3 = time.time()
+            # print('Update Time: %.5f s' % (time3 - time2))
+            # time0 = time3
+            for k, v in log_dict.items():
+                if k not in logs:
+                    logs[k] = v
+                else:
+                    logs[k] += v
+
+            it += 1
+            if it % self.opt.log_every == 0:
+                mean_loss = OrderedDict({'val_loss': val_loss})
+                self.logger.scalar_summary('val_loss', val_loss, it)
+
+                for tag, value in logs.items():
+                    self.logger.scalar_summary(tag, value / self.opt.log_every, it)
+                    mean_loss[tag] = value / self.opt.log_every
+                logs = OrderedDict()
+                print_current_loss_decomp(start_time, it, total_iters, mean_loss, epoch, i)
+
+                if it % self.opt.save_latest == 0:
+                    self.save(pjoin(self.opt.model_dir, 'latest.tar'), epoch, it)
+
+        self.save(pjoin(self.opt.model_dir, 'latest.tar'), epoch, it)
+
+        epoch += 1
+        if epoch % self.opt.save_every_e == 0:
+            self.save(pjoin(self.opt.model_dir, 'E%04d.tar' % (epoch)), epoch, total_it=it)
+
+        print('Validation time:')
+
         val_loss = 0
-        logs = OrderedDict()
-        while epoch < self.opt.max_epoch:
-            # time0 = time.time()
-            for i, batch_data in enumerate(train_dataloader):
-                self.movement_dec.train()
-                self.movement_enc.train()
+        val_rec_loss = 0
+        val_sparcity_loss = 0
+        val_smooth_loss = 0
+        with torch.no_grad():
+          for batch_data in val_dataloader:
+            self.forward(batch_data)
+            self.backward()
+            val_rec_loss += self.loss_rec.item()
+            val_smooth_loss += self.loss.item()
+            val_sparcity_loss += self.loss_sparsity.item()
+            val_smooth_loss += self.loss_smooth.item()
+            val_loss += self.loss.item()
 
-                # time1 = time.time()
-                # print('DataLoader Time: %.5f s'%(time1-time0) )
-                self.forward(batch_data)
-                # time2 = time.time()
-                # print('Forward Time: %.5f s'%(time2-time1))
-                log_dict = self.update()
-                # time3 = time.time()
-                # print('Update Time: %.5f s' % (time3 - time2))
-                # time0 = time3
-                for k, v in log_dict.items():
-                    if k not in logs:
-                        logs[k] = v
-                    else:
-                        logs[k] += v
-
-                it += 1
-                if it % self.opt.log_every == 0:
-                    mean_loss = OrderedDict({'val_loss': val_loss})
-                    self.logger.scalar_summary('val_loss', val_loss, it)
-
-                    for tag, value in logs.items():
-                        self.logger.scalar_summary(tag, value / self.opt.log_every, it)
-                        mean_loss[tag] = value / self.opt.log_every
-                    logs = OrderedDict()
-                    print_current_loss_decomp(start_time, it, total_iters, mean_loss, epoch, i)
-
-                    if it % self.opt.save_latest == 0:
-                        self.save(pjoin(self.opt.model_dir, 'latest.tar'), epoch, it)
-
-            self.save(pjoin(self.opt.model_dir, 'latest.tar'), epoch, it)
-
-            epoch += 1
-            if epoch % self.opt.save_every_e == 0:
-                self.save(pjoin(self.opt.model_dir, 'E%04d.tar' % (epoch)), epoch, total_it=it)
-
-            print('Validation time:')
-
-            val_loss = 0
-            val_rec_loss = 0
-            val_sparcity_loss = 0
-            val_smooth_loss = 0
-            with torch.no_grad():
-                for i, batch_data in enumerate(val_dataloader):
-                    self.forward(batch_data)
-                    self.backward()
-                    val_rec_loss += self.loss_rec.item()
-                    val_smooth_loss += self.loss.item()
-                    val_sparcity_loss += self.loss_sparsity.item()
-                    val_smooth_loss += self.loss_smooth.item()
-                    val_loss += self.loss.item()
-
-            val_loss = val_loss / (len(val_dataloader) + 1)
-            val_rec_loss = val_rec_loss / (len(val_dataloader) + 1)
-            val_sparcity_loss = val_sparcity_loss / (len(val_dataloader) + 1)
-            val_smooth_loss = val_smooth_loss / (len(val_dataloader) + 1)
-            print('Validation Loss: %.5f Reconstruction Loss: %.5f '
-                  'Sparsity Loss: %.5f Smooth Loss: %.5f' % (val_loss, val_rec_loss, val_sparcity_loss, \
+        val_loss = val_loss / (len(val_dataloader) + 1)
+        val_rec_loss = val_rec_loss / (len(val_dataloader) + 1)
+        val_sparcity_loss = val_sparcity_loss / (len(val_dataloader) + 1)
+        val_smooth_loss = val_smooth_loss / (len(val_dataloader) + 1)
+        print('Validation Loss: %.5f Reconstruction Loss: %.5f '
+              'Sparsity Loss: %.5f Smooth Loss: %.5f' % (val_loss, val_rec_loss, val_sparcity_loss, \
                                                              val_smooth_loss))
 
-            if epoch % self.opt.eval_every_e == 0:
-                data = torch.cat([self.recon_motions[:4], self.motions[:4]], dim=0).detach().cpu().numpy()
-                save_dir = pjoin(self.opt.eval_dir, 'E%04d' % (epoch))
-                os.makedirs(save_dir, exist_ok=True)
-                plot_eval(data, save_dir)
+        if epoch % self.opt.eval_every_e == 0:
+            data = torch.cat([self.recon_motions[:4], self.motions[:4]], dim=0).detach().cpu().numpy()
+            save_dir = pjoin(self.opt.eval_dir, 'E%04d' % (epoch))
+            os.makedirs(save_dir, exist_ok=True)
+            plot_eval(data, save_dir)
 
 
 # VAE Sequence Decoder/Prior/Posterior latent by latent
@@ -275,109 +275,104 @@ class CompTrainerV6(object):
         return kld.sum() / mu.shape[0]
 
     def forward(self, batch_data, tf_ratio, mov_len, eval_mode=False):
-        word_emb, pos_ohot, caption, cap_lens, motions, m_lens = batch_data
-        word_emb = word_emb.detach().to(self.device).float()
-        pos_ohot = pos_ohot.detach().to(self.device).float()
-        motions = motions.detach().to(self.device).float()
-        self.cap_lens = cap_lens
-        self.caption = caption
+      word_emb, pos_ohot, caption, cap_lens, motions, m_lens = batch_data
+      word_emb = word_emb.detach().to(self.device).float()
+      pos_ohot = pos_ohot.detach().to(self.device).float()
+      motions = motions.detach().to(self.device).float()
+      self.cap_lens = cap_lens
+      self.caption = caption
 
-        # print(motions.shape)
-        # (batch_size, motion_len, pose_dim)
-        self.motions = motions
+      # print(motions.shape)
+      # (batch_size, motion_len, pose_dim)
+      self.motions = motions
 
-        '''Movement Encoding'''
-        self.movements = self.mov_enc(self.motions[..., :-4]).detach()
-        # Initially input a mean vector
-        mov_in = self.mov_enc(
-            torch.zeros((self.motions.shape[0], self.opt.unit_length, self.motions.shape[-1] - 4), device=self.device)
-        ).squeeze(1).detach()
-        assert self.movements.shape[1] == mov_len
+      '''Movement Encoding'''
+      self.movements = self.mov_enc(self.motions[..., :-4]).detach()
+      # Initially input a mean vector
+      mov_in = self.mov_enc(
+          torch.zeros((self.motions.shape[0], self.opt.unit_length, self.motions.shape[-1] - 4), device=self.device)
+      ).squeeze(1).detach()
+      assert self.movements.shape[1] == mov_len
 
-        teacher_force = True if random.random() < tf_ratio else False
+      teacher_force = random.random() < tf_ratio
 
-        '''Text Encoding'''
-        # time0 = time.time()
-        # text_input = torch.cat([word_emb, pos_ohot], dim=-1)
-        word_hids, hidden = self.text_enc(word_emb, pos_ohot, cap_lens)
-        # print(word_hids.shape, hidden.shape)
+      '''Text Encoding'''
+      # time0 = time.time()
+      # text_input = torch.cat([word_emb, pos_ohot], dim=-1)
+      word_hids, hidden = self.text_enc(word_emb, pos_ohot, cap_lens)
+      # print(word_hids.shape, hidden.shape)
 
-        if self.opt.text_enc_mod == 'bigru':
-            hidden_pos = self.seq_post.get_init_hidden(hidden)
-            hidden_pri = self.seq_pri.get_init_hidden(hidden)
-            hidden_dec = self.seq_dec.get_init_hidden(hidden)
-        elif self.opt.text_enc_mod == 'transformer':
-            hidden_pos = self.seq_post.get_init_hidden(hidden.detach())
-            hidden_pri = self.seq_pri.get_init_hidden(hidden.detach())
-            hidden_dec = self.seq_dec.get_init_hidden(hidden)
+      if self.opt.text_enc_mod == 'bigru':
+          hidden_pos = self.seq_post.get_init_hidden(hidden)
+          hidden_pri = self.seq_pri.get_init_hidden(hidden)
+          hidden_dec = self.seq_dec.get_init_hidden(hidden)
+      elif self.opt.text_enc_mod == 'transformer':
+          hidden_pos = self.seq_post.get_init_hidden(hidden.detach())
+          hidden_pri = self.seq_pri.get_init_hidden(hidden.detach())
+          hidden_dec = self.seq_dec.get_init_hidden(hidden)
 
-        mus_pri = []
-        logvars_pri = []
-        mus_post = []
-        logvars_post = []
-        fake_mov_batch = []
+      mus_pri = []
+      logvars_pri = []
+      mus_post = []
+      logvars_post = []
+      fake_mov_batch = []
 
-        query_input = []
+      query_input = []
 
         # time1 = time.time()
         # print("\t Text Encoder Cost:%5f" % (time1 - time0))
         # print(self.movements.shape)
 
-        for i in range(mov_len):
-            # print("\t Sequence Measure")
-            # print(mov_in.shape)
-            mov_tgt = self.movements[:, i]
-            '''Local Attention Vector'''
-            att_vec, _ = self.att_layer(hidden_dec[-1], word_hids)
-            query_input.append(hidden_dec[-1])
+      for i in range(mov_len):
+        # print("\t Sequence Measure")
+        # print(mov_in.shape)
+        mov_tgt = self.movements[:, i]
+        '''Local Attention Vector'''
+        att_vec, _ = self.att_layer(hidden_dec[-1], word_hids)
+        query_input.append(hidden_dec[-1])
 
-            tta = m_lens // self.opt.unit_length - i
+        tta = m_lens // self.opt.unit_length - i
 
-            if self.opt.text_enc_mod == 'bigru':
-                pos_in = torch.cat([mov_in, mov_tgt, att_vec], dim=-1)
-                pri_in = torch.cat([mov_in, att_vec], dim=-1)
+        if self.opt.text_enc_mod == 'bigru':
+            pos_in = torch.cat([mov_in, mov_tgt, att_vec], dim=-1)
+            pri_in = torch.cat([mov_in, att_vec], dim=-1)
 
-            elif self.opt.text_enc_mod == 'transformer':
-                pos_in = torch.cat([mov_in, mov_tgt, att_vec.detach()], dim=-1)
-                pri_in = torch.cat([mov_in, att_vec.detach()], dim=-1)
+        elif self.opt.text_enc_mod == 'transformer':
+            pos_in = torch.cat([mov_in, mov_tgt, att_vec.detach()], dim=-1)
+            pri_in = torch.cat([mov_in, att_vec.detach()], dim=-1)
 
-            '''Posterior'''
-            z_pos, mu_pos, logvar_pos, hidden_pos = self.seq_post(pos_in, hidden_pos, tta)
+        '''Posterior'''
+        z_pos, mu_pos, logvar_pos, hidden_pos = self.seq_post(pos_in, hidden_pos, tta)
 
-            '''Prior'''
-            z_pri, mu_pri, logvar_pri, hidden_pri = self.seq_pri(pri_in, hidden_pri, tta)
+        '''Prior'''
+        z_pri, mu_pri, logvar_pri, hidden_pri = self.seq_pri(pri_in, hidden_pri, tta)
 
-            '''Decoder'''
-            if eval_mode:
-                dec_in = torch.cat([mov_in, att_vec, z_pri], dim=-1)
-            else:
-                dec_in = torch.cat([mov_in, att_vec, z_pos], dim=-1)
-            fake_mov, hidden_dec = self.seq_dec(dec_in, mov_in, hidden_dec, tta)
+        '''Decoder'''
+        if eval_mode:
+            dec_in = torch.cat([mov_in, att_vec, z_pri], dim=-1)
+        else:
+            dec_in = torch.cat([mov_in, att_vec, z_pos], dim=-1)
+        fake_mov, hidden_dec = self.seq_dec(dec_in, mov_in, hidden_dec, tta)
 
-            # print(fake_mov.shape)
+        # print(fake_mov.shape)
 
-            mus_post.append(mu_pos)
-            logvars_post.append(logvar_pos)
-            mus_pri.append(mu_pri)
-            logvars_pri.append(logvar_pri)
-            fake_mov_batch.append(fake_mov.unsqueeze(1))
+        mus_post.append(mu_pos)
+        logvars_post.append(logvar_pos)
+        mus_pri.append(mu_pri)
+        logvars_pri.append(logvar_pri)
+        fake_mov_batch.append(fake_mov.unsqueeze(1))
 
-            if teacher_force:
-                mov_in = self.movements[:, i].detach()
-            else:
-                mov_in = fake_mov.detach()
+        mov_in = self.movements[:, i].detach() if teacher_force else fake_mov.detach()
+      self.fake_movements = torch.cat(fake_mov_batch, dim=1)
 
+      # print(self.fake_movements.shape)
 
-        self.fake_movements = torch.cat(fake_mov_batch, dim=1)
+      self.fake_motions = self.mov_dec(self.fake_movements)
 
-        # print(self.fake_movements.shape)
-
-        self.fake_motions = self.mov_dec(self.fake_movements)
-
-        self.mus_post = torch.cat(mus_post, dim=0)
-        self.mus_pri = torch.cat(mus_pri, dim=0)
-        self.logvars_post = torch.cat(logvars_post, dim=0)
-        self.logvars_pri = torch.cat(logvars_pri, dim=0)
+      self.mus_post = torch.cat(mus_post, dim=0)
+      self.mus_pri = torch.cat(mus_pri, dim=0)
+      self.logvars_post = torch.cat(logvars_post, dim=0)
+      self.logvars_pri = torch.cat(logvars_pri, dim=0)
 
     def generate(self, word_emb, pos_ohot, cap_lens, m_lens, mov_len, dim_pose):
         word_emb = word_emb.detach().to(self.device).float()

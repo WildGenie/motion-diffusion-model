@@ -33,21 +33,18 @@ class Text2MotionDataset(data.Dataset):
         data_dict = {}
         id_list = []
         with cs.open(split_file, 'r') as f:
-            for line in f.readlines():
-                id_list.append(line.strip())
-
+            id_list.extend(line.strip() for line in f.readlines())
         new_name_list = []
         length_list = []
         for name in tqdm(id_list):
             try:
-                motion = np.load(pjoin(opt.motion_dir, name + '.npy'))
+                motion = np.load(pjoin(opt.motion_dir, f'{name}.npy'))
                 if (len(motion)) < min_motion_len or (len(motion) >= 200):
                     continue
                 text_data = []
                 flag = False
-                with cs.open(pjoin(opt.text_dir, name + '.txt')) as f:
+                with cs.open(pjoin(opt.text_dir, f'{name}.txt')) as f:
                     for line in f.readlines():
-                        text_dict = {}
                         line_split = line.strip().split('#')
                         caption = line_split[0]
                         tokens = line_split[1].split(' ')
@@ -56,8 +53,7 @@ class Text2MotionDataset(data.Dataset):
                         f_tag = 0.0 if np.isnan(f_tag) else f_tag
                         to_tag = 0.0 if np.isnan(to_tag) else to_tag
 
-                        text_dict['caption'] = caption
-                        text_dict['tokens'] = tokens
+                        text_dict = {'caption': caption, 'tokens': tokens}
                         if f_tag == 0.0 and to_tag == 0.0:
                             flag = True
                             text_data.append(text_dict)
@@ -94,7 +90,7 @@ class Text2MotionDataset(data.Dataset):
 
         if opt.is_train:
             # root_rot_velocity (B, seq_len, 1)
-            std[0:1] = std[0:1] / opt.feat_bias
+            std[:1] = std[:1] / opt.feat_bias
             # root_linear_velocity (B, seq_len, 2)
             std[1:3] = std[1:3] / opt.feat_bias
             # root_y (B, seq_len, 1)

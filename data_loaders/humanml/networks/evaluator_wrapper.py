@@ -106,7 +106,7 @@ def build_evaluators(opt):
                                       device=opt['device'])
 
     ckpt_dir = opt['dataset_name']
-    if opt['dataset_name'] == 'humanml':
+    if ckpt_dir == 'humanml':
         ckpt_dir = 't2m'
 
     checkpoint = torch.load(pjoin(opt['checkpoints_dir'], ckpt_dir, 'text_mot_match', 'model', 'finest.tar'),

@@ -31,8 +31,10 @@ def main():
     is_using_data = not any([args.input_text, args.text_prompt, args.action_file, args.action_name])
     dist_util.setup_dist(args.device)
     if out_path == '':
-        out_path = os.path.join(os.path.dirname(args.model_path),
-                                'samples_{}_{}_seed{}'.format(name, niter, args.seed))
+        out_path = os.path.join(
+            os.path.dirname(args.model_path),
+            f'samples_{name}_{niter}_seed{args.seed}',
+        )
         if args.text_prompt != '':
             out_path += '_' + args.text_prompt.replace(' ', '_').replace('.', '')
         elif args.input_text != '':
@@ -204,7 +206,11 @@ def save_multiple_samples(args, out_path, row_print_template, all_print_template
     all_rep_save_path = os.path.join(out_path, all_rep_save_file)
     ffmpeg_rep_files = [f' -i {f} ' for f in rep_files]
     hstack_args = f' -filter_complex hstack=inputs={args.num_repetitions}' if args.num_repetitions > 1 else ''
-    ffmpeg_rep_cmd = f'ffmpeg -y -loglevel warning ' + ''.join(ffmpeg_rep_files) + f'{hstack_args} {all_rep_save_path}'
+    ffmpeg_rep_cmd = (
+        'ffmpeg -y -loglevel warning '
+        + ''.join(ffmpeg_rep_files)
+        + f'{hstack_args} {all_rep_save_path}'
+    )
     os.system(ffmpeg_rep_cmd)
     print(row_print_template.format(caption, sample_i, all_rep_save_file))
     sample_files.append(all_rep_save_path)
@@ -215,8 +221,9 @@ def save_multiple_samples(args, out_path, row_print_template, all_print_template
         print(all_print_template.format(sample_i - len(sample_files) + 1, sample_i, all_sample_save_file))
         ffmpeg_rep_files = [f' -i {f} ' for f in sample_files]
         vstack_args = f' -filter_complex vstack=inputs={len(sample_files)}' if len(sample_files) > 1 else ''
-        ffmpeg_rep_cmd = f'ffmpeg -y -loglevel warning ' + ''.join(
-            ffmpeg_rep_files) + f'{vstack_args} {all_sample_save_path}'
+        ffmpeg_rep_cmd = (
+            'ffmpeg -y -loglevel warning ' + ''.join(ffmpeg_rep_files)
+        ) + f'{vstack_args} {all_sample_save_path}'
         os.system(ffmpeg_rep_cmd)
         sample_files = []
     return sample_files

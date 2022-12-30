@@ -7,15 +7,14 @@ from tqdm import tqdm
 from utils import dist_util
 
 def build_models(opt):
-    if opt.text_enc_mod == 'bigru':
-        text_encoder = TextEncoderBiGRU(word_size=opt.dim_word,
-                                        pos_size=opt.dim_pos_ohot,
-                                        hidden_size=opt.dim_text_hidden,
-                                        device=opt.device)
-        text_size = opt.dim_text_hidden * 2
-    else:
+    if opt.text_enc_mod != 'bigru':
         raise Exception("Text Encoder Mode not Recognized!!!")
 
+    text_encoder = TextEncoderBiGRU(word_size=opt.dim_word,
+                                    pos_size=opt.dim_pos_ohot,
+                                    hidden_size=opt.dim_text_hidden,
+                                    device=opt.device)
+    text_size = opt.dim_text_hidden * 2
     seq_prior = TextDecoder(text_size=text_size,
                             input_size=opt.dim_att_vec + opt.dim_movement_latent,
                             output_size=opt.dim_z,
@@ -56,7 +55,9 @@ class CompV6GeneratedDataset(Dataset):
         dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=True)
         text_enc, seq_pri, seq_dec, att_layer, mov_enc, mov_dec, len_estimator = build_models(opt)
         trainer = CompTrainerV6(opt, text_enc, seq_pri, seq_dec, att_layer, mov_dec, mov_enc=mov_enc)
-        epoch, it, sub_ep, schedule_len = trainer.load(pjoin(opt.model_dir, opt.which_epoch + '.tar'))
+        epoch, it, sub_ep, schedule_len = trainer.load(
+            pjoin(opt.model_dir, f'{opt.which_epoch}.tar')
+        )
         generated_motion = []
         mm_generated_motions = []
         mm_idxs = np.random.choice(len(dataset), mm_num_samples, replace=False)
@@ -78,7 +79,7 @@ class CompV6GeneratedDataset(Dataset):
                 pred_dis = nn.Softmax(-1)(pred_dis).squeeze()
 
                 mm_num_now = len(mm_generated_motions)
-                is_mm = True if ((mm_num_now < mm_num_samples) and (i == mm_idxs[mm_num_now])) else False
+                is_mm = mm_num_now < mm_num_samples and i == mm_idxs[mm_num_now]
 
                 repeat_times = mm_num_repeats if is_mm else 1
                 mm_motions = []
@@ -152,9 +153,7 @@ class CompMDMGeneratedDataset(Dataset):
         use_ddim = False  # FIXME - hardcoded
         clip_denoised = False  # FIXME - hardcoded
         self.max_motion_length = max_motion_length
-        sample_fn = (
-            diffusion.p_sample_loop if not use_ddim else diffusion.ddim_sample_loop
-        )
+        sample_fn = diffusion.ddim_sample_loop if use_ddim else diffusion.p_sample_loop
 
         real_num_batches = len(dataloader)
         if num_samples_limit is not None:

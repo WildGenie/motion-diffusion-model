@@ -29,8 +29,10 @@ def main():
     fps = 12.5 if args.dataset == 'kit' else 20
     dist_util.setup_dist(args.device)
     if out_path == '':
-        out_path = os.path.join(os.path.dirname(args.model_path),
-                                'edit_{}_{}_{}_seed{}'.format(name, niter, args.edit_mode, args.seed))
+        out_path = os.path.join(
+            os.path.dirname(args.model_path),
+            f'edit_{name}_{niter}_{args.edit_mode}_seed{args.seed}',
+        )
         if args.text_condition != '':
             out_path += '_' + args.text_condition.replace(' ', '_').replace('.', '')
 
@@ -78,7 +80,9 @@ def main():
                                                                device=input_motions.device)  # True means use gt motion
         for i, length in enumerate(model_kwargs['y']['lengths'].cpu().numpy()):
             start_idx, end_idx = int(args.prefix_end * length), int(args.suffix_start * length)
-            gt_frames_per_sample[i] = list(range(0, start_idx)) + list(range(end_idx, max_frames))
+            gt_frames_per_sample[i] = list(range(start_idx)) + list(
+                range(end_idx, max_frames)
+            )
             model_kwargs['y']['inpainting_mask'][i, :, :,
             start_idx: end_idx] = False  # do inpainting in those frames
     elif args.edit_mode == 'upper_body':
@@ -170,9 +174,9 @@ def main():
         for rep_i in range(args.num_repetitions):
             caption = all_text[rep_i*args.batch_size + sample_i]
             if caption == '':
-                caption = 'Edit [{}] unconditioned'.format(args.edit_mode)
+                caption = f'Edit [{args.edit_mode}] unconditioned'
             else:
-                caption = 'Edit [{}]: {}'.format(args.edit_mode, caption)
+                caption = f'Edit [{args.edit_mode}]: {caption}'
             length = all_lengths[rep_i*args.batch_size + sample_i]
             motion = all_motions[rep_i*args.batch_size + sample_i].transpose(2, 0, 1)[:length]
             save_file = 'sample{:02d}_rep{:02d}.mp4'.format(sample_i, rep_i)
@@ -182,12 +186,16 @@ def main():
             plot_3d_motion(animation_save_path, skeleton, motion, title=caption,
                            dataset=args.dataset, fps=fps, vis_mode=args.edit_mode,
                            gt_frames=gt_frames_per_sample.get(sample_i, []))
-            # Credit for visualization: https://github.com/EricGuo5513/text-to-motion
+                    # Credit for visualization: https://github.com/EricGuo5513/text-to-motion
 
         all_rep_save_file = os.path.join(out_path, 'sample{:02d}.mp4'.format(sample_i))
         ffmpeg_rep_files = [f' -i {f} ' for f in rep_files]
         hstack_args = f' -filter_complex hstack=inputs={args.num_repetitions+1}'
-        ffmpeg_rep_cmd = f'ffmpeg -y -loglevel warning ' + ''.join(ffmpeg_rep_files) + f'{hstack_args} {all_rep_save_file}'
+        ffmpeg_rep_cmd = (
+            'ffmpeg -y -loglevel warning '
+            + ''.join(ffmpeg_rep_files)
+            + f'{hstack_args} {all_rep_save_file}'
+        )
         os.system(ffmpeg_rep_cmd)
         print(f'[({sample_i}) "{caption}" | all repetitions | -> {all_rep_save_file}]')
 

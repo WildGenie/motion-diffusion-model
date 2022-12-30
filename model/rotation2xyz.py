@@ -86,7 +86,4 @@ class Rotation2xyz:
             # add the translation to all the joints
             x_xyz = x_xyz + x_translations[:, None, :, :]
 
-        if get_rotations_back:
-            return x_xyz, rotations, global_orient
-        else:
-            return x_xyz
+        return (x_xyz, rotations, global_orient) if get_rotations_back else x_xyz

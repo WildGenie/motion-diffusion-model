@@ -40,7 +40,7 @@ def evaluate(args, model, diffusion, data):
     iter = int(re.findall('\d+', ckpt_name)[0])
     scale = 1 if scale is None else scale['action'][0].item()
     scale = str(scale).replace('.', 'p')
-    metricname = "evaluation_results_iter{}_samp{}_scale{}_a2m.yaml".format(iter, args.num_samples, scale)
+    metricname = f"evaluation_results_iter{iter}_samp{args.num_samples}_scale{scale}_a2m.yaml"
     evalpath = os.path.join(folder, metricname)
     print(f"Saving evaluation: {evalpath}")
     save_metrics(evalpath, eval_results)
@@ -73,7 +73,11 @@ def main():
 
     eval_results = evaluate(args, model, diffusion, data_loader.dataset)
 
-    fid_to_print = {k : sum([float(vv) for vv in v])/len(v) for k, v in eval_results['feats'].items() if 'fid' in k and 'gen' in k}
+    fid_to_print = {
+        k: sum(float(vv) for vv in v) / len(v)
+        for k, v in eval_results['feats'].items()
+        if 'fid' in k and 'gen' in k
+    }
     print(fid_to_print)
 
 if __name__ == '__main__':

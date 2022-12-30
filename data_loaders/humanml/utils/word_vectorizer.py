@@ -45,9 +45,9 @@ VIP_dict = {
 
 class WordVectorizer(object):
     def __init__(self, meta_root, prefix):
-        vectors = np.load(pjoin(meta_root, '%s_data.npy'%prefix))
-        words = pickle.load(open(pjoin(meta_root, '%s_words.pkl'%prefix), 'rb'))
-        word2idx = pickle.load(open(pjoin(meta_root, '%s_idx.pkl'%prefix), 'rb'))
+        vectors = np.load(pjoin(meta_root, f'{prefix}_data.npy'))
+        words = pickle.load(open(pjoin(meta_root, f'{prefix}_words.pkl'), 'rb'))
+        word2idx = pickle.load(open(pjoin(meta_root, f'{prefix}_idx.pkl'), 'rb'))
         self.word2vec = {w: vectors[word2idx[w]] for w in words}
 
     def _get_pos_ohot(self, pos):
@@ -65,11 +65,9 @@ class WordVectorizer(object):
         word, pos = item.split('/')
         if word in self.word2vec:
             word_vec = self.word2vec[word]
-            vip_pos = None
-            for key, values in VIP_dict.items():
-                if word in values:
-                    vip_pos = key
-                    break
+            vip_pos = next(
+                (key for key, values in VIP_dict.items() if word in values), None
+            )
             if vip_pos is not None:
                 pos_vec = self._get_pos_ohot(vip_pos)
             else:

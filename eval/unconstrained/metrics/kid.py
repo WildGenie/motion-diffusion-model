@@ -132,5 +132,4 @@ def _sqn(arr):
 
 def calculate_kid(real_activations, generated_activations):
     kid_values = polynomial_mmd_averages(real_activations, generated_activations, n_subsets=100)
-    results = (kid_values[0].mean(), kid_values[0].std())
-    return results
+    return kid_values[0].mean(), kid_values[0].std()

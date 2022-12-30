@@ -19,13 +19,15 @@ class ContrastiveLoss(torch.nn.Module):
 
     def forward(self, output1, output2, label):
         euclidean_distance = F.pairwise_distance(output1, output2, keepdim=True)
-        loss_contrastive = torch.mean((1-label) * torch.pow(euclidean_distance, 2) +
-                                      (label) * torch.pow(torch.clamp(self.margin - euclidean_distance, min=0.0), 2))
-        return loss_contrastive
+        return torch.mean(
+            (1 - label) * torch.pow(euclidean_distance, 2)
+            + (label)
+            * torch.pow(torch.clamp(self.margin - euclidean_distance, min=0.0), 2)
+        )
 
 
 def init_weight(m):
-    if isinstance(m, nn.Conv1d) or isinstance(m, nn.Linear) or isinstance(m, nn.ConvTranspose1d):
+    if isinstance(m, (nn.Conv1d, nn.Linear, nn.ConvTranspose1d)):
         nn.init.xavier_normal_(m.weight)
         # m.bias.data.fill_(0.01)
         if m.bias is not None:
@@ -133,7 +135,9 @@ class TextVAEDecoder(nn.Module):
             nn.LeakyReLU(0.2, inplace=True))
 
         self.z2init = nn.Linear(text_size, hidden_size * n_layers)
-        self.gru = nn.ModuleList([nn.GRUCell(hidden_size, hidden_size) for i in range(self.n_layers)])
+        self.gru = nn.ModuleList(
+            [nn.GRUCell(hidden_size, hidden_size) for _ in range(self.n_layers)]
+        )
         self.positional_encoder = PositionalEncoding(hidden_size)
 
 
@@ -196,7 +200,9 @@ class TextDecoder(nn.Module):
             nn.LayerNorm(hidden_size),
             nn.LeakyReLU(0.2, inplace=True))
 
-        self.gru = nn.ModuleList([nn.GRUCell(hidden_size, hidden_size) for i in range(self.n_layers)])
+        self.gru = nn.ModuleList(
+            [nn.GRUCell(hidden_size, hidden_size) for _ in range(self.n_layers)]
+        )
         self.z2init = nn.Linear(text_size, hidden_size * n_layers)
         self.positional_encoder = PositionalEncoding(hidden_size)
 

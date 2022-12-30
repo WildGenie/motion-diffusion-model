@@ -101,9 +101,7 @@ class TrainLoop:
         self.ddp_model = self.model
 
     def _load_and_sync_parameters(self):
-        resume_checkpoint = find_resume_checkpoint() or self.resume_checkpoint
-
-        if resume_checkpoint:
+        if resume_checkpoint := find_resume_checkpoint() or self.resume_checkpoint:
             self.resume_step = parse_resume_step_from_filename(resume_checkpoint)
             logger.log(f"loading model from checkpoint: {resume_checkpoint}...")
             self.model.load_state_dict(
@@ -129,7 +127,10 @@ class TrainLoop:
         for epoch in range(self.num_epochs):
             print(f'Starting epoch {epoch}')
             for motion, cond in tqdm(self.data):
-                if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
+                if (
+                    self.lr_anneal_steps
+                    and self.step + self.resume_step >= self.lr_anneal_steps
+                ):
                     break
 
                 motion = motion.to(self.device)
@@ -156,7 +157,10 @@ class TrainLoop:
                     if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
                         return
                 self.step += 1
-            if not (not self.lr_anneal_steps or self.step + self.resume_step < self.lr_anneal_steps):
+            if (
+                self.lr_anneal_steps
+                and self.step + self.resume_step >= self.lr_anneal_steps
+            ):
                 break
         # Save the last checkpoint if it wasn't already saved.
         if (self.step - 1) % self.save_interval != 0:
@@ -179,9 +183,12 @@ class TrainLoop:
             for k, v in eval_dict.items():
                 if k.startswith('R_precision'):
                     for i in range(len(v)):
-                        self.train_platform.report_scalar(name=f'top{i + 1}_' + k, value=v[i],
-                                                          iteration=self.step + self.resume_step,
-                                                          group_name='Eval')
+                        self.train_platform.report_scalar(
+                            name=f'top{i + 1}_{k}',
+                            value=v[i],
+                            iteration=self.step + self.resume_step,
+                            group_name='Eval',
+                        )
                 else:
                     self.train_platform.report_scalar(name=k, value=v, iteration=self.step + self.resume_step,
                                                       group_name='Eval')
@@ -272,7 +279,7 @@ class TrainLoop:
             for e in clip_weights:
                 del state_dict[e]
 
-            logger.log(f"saving model...")
+            logger.log("saving model...")
             filename = self.ckpt_file_name()
             with bf.BlobFile(bf.join(self.save_dir, filename), "wb") as f:
                 torch.save(state_dict, f)

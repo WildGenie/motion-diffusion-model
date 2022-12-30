@@ -32,8 +32,7 @@ def uniform_skeleton(positions, target_offset):
 
     '''Forward Kinematics'''
     src_skel.set_offset(target_offset)
-    new_joints = src_skel.forward_kinematics_np(quat_params, tgt_root_pos)
-    return new_joints
+    return src_skel.forward_kinematics_np(quat_params, tgt_root_pos)
 
 
 def extract_features(positions, feet_thre, n_raw_offsets, kinematic_chain, face_joint_indx, fid_r, fid_l):
@@ -393,9 +392,7 @@ def recover_from_rot(data, joints_num, skeleton):
     cont6d_params = torch.cat([r_rot_cont6d, cont6d_params], dim=-1)
     cont6d_params = cont6d_params.view(-1, joints_num, 6)
 
-    positions = skeleton.forward_kinematics_cont6d(cont6d_params, r_pos)
-
-    return positions
+    return skeleton.forward_kinematics_cont6d(cont6d_params, r_pos)
 
 def recover_rot(data):
     # dataset [bs, seqlen, 263/251] HumanML/KIT
@@ -431,6 +428,7 @@ def recover_from_ric(data, joints_num):
 '''
 For Text2Motion Dataset
 '''
+
 '''
 if __name__ == "__main__":
     example_id = "000021"
@@ -498,7 +496,7 @@ if __name__ == "__main__":
     kinematic_chain = kit_kinematic_chain
 
     '''Get offsets of target skeleton'''
-    example_data = np.load(os.path.join(data_dir, example_id + '.npy'))
+    example_data = np.load(os.path.join(data_dir, f'{example_id}.npy'))
     example_data = example_data.reshape(len(example_data), -1, 3)
     example_data = torch.from_numpy(example_data)
     tgt_skel = Skeleton(n_raw_offsets, kinematic_chain, 'cpu')

@@ -16,11 +16,14 @@ def normal_kl(mean1, logvar1, mean2, logvar2):
     Shapes are automatically broadcasted, so batches can be compared to
     scalars, among other use cases.
     """
-    tensor = None
-    for obj in (mean1, logvar1, mean2, logvar2):
-        if isinstance(obj, th.Tensor):
-            tensor = obj
-            break
+    tensor = next(
+        (
+            obj
+            for obj in (mean1, logvar1, mean2, logvar2)
+            if isinstance(obj, th.Tensor)
+        ),
+        None,
+    )
     assert tensor is not None, "at least one argument must be a Tensor"
 
     # Force variances to be Tensors. Broadcasting helps convert scalars to

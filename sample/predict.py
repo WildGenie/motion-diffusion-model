@@ -65,7 +65,7 @@ class Predictor(BasePredictor):
         print("Creating model and diffusion...")
         self.model, self.diffusion = create_model_and_diffusion(self.args, self.data)
 
-        print(f"Loading checkpoints from...")
+        print("Loading checkpoints from...")
         state_dict = torch.load(self.args.model_path, map_location='cpu')
         load_model_wo_clip(self.model, state_dict)
 
@@ -81,7 +81,7 @@ class Predictor(BasePredictor):
 
     ) -> typing.List[Path]:
         args = self.args
-        args.num_repetitions = int(num_repetitions)
+        args.num_repetitions = num_repetitions
 
         self.data = get_dataset_loader(name=self.args.dataset,
                                   batch_size=args.num_repetitions,
@@ -89,7 +89,14 @@ class Predictor(BasePredictor):
                                   split='test',
                                   hml_mode='text_only')
 
-        collate_args = [{'inp': torch.zeros(self.num_frames), 'tokens': None, 'lengths': self.num_frames, 'text': str(prompt)}]
+        collate_args = [
+            {
+                'inp': torch.zeros(self.num_frames),
+                'tokens': None,
+                'lengths': self.num_frames,
+                'text': prompt,
+            }
+        ]
         _, model_kwargs = collate(collate_args)
 
         # add CFG scale to batch
@@ -126,13 +133,13 @@ class Predictor(BasePredictor):
 
         all_motions = sample.cpu().numpy()
 
-        caption = str(prompt)
+        caption = prompt
 
         skeleton = paramUtil.t2m_kinematic_chain
 
 
         sample_print_template, row_print_template, all_print_template, \
-            sample_file_template, row_file_template, all_file_template = construct_template_variables(
+                sample_file_template, row_file_template, all_file_template = construct_template_variables(
             args.unconstrained)
 
         rep_files = []

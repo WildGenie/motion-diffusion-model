@@ -43,7 +43,7 @@ class NewDataloader:
                 motions = motions.to(device)
                 if num_samples != -1 and len(self.batches) * dataiterator.batch_size > num_samples:
                     continue  # do not break because it confuses the multiple loaders
-                batch = dict()
+                batch = {}
                 if mode == "gen":
                     sample = sample_fn(model, motions.shape, clip_denoised=False, model_kwargs=model_kwargs)
                     batch['output'] = sample
@@ -142,6 +142,11 @@ def evaluate(args, model, diffusion, data):
         stgcn_metrics[seed] = stgcnevaluation.evaluate(model, loaders)
         del loaders
 
-    metrics = {"feats": {key: [format_metrics(stgcn_metrics[seed])[key] for seed in allseeds] for key in stgcn_metrics[allseeds[0]]}}
-
-    return metrics
+    return {
+        "feats": {
+            key: [
+                format_metrics(stgcn_metrics[seed])[key] for seed in allseeds
+            ]
+            for key in stgcn_metrics[allseeds[0]]
+        }
+    }

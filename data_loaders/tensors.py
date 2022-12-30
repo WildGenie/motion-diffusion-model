@@ -1,14 +1,14 @@
 import torch
 
 def lengths_to_mask(lengths, max_len):
-    # max_len = max(lengths)
-    mask = torch.arange(max_len, device=lengths.device).expand(len(lengths), max_len) < lengths.unsqueeze(1)
-    return mask
+    return torch.arange(max_len, device=lengths.device).expand(
+        len(lengths), max_len
+    ) < lengths.unsqueeze(1)
     
 
 def collate_tensors(batch):
     dims = batch[0].dim()
-    max_size = [max([b.size(i) for b in batch]) for i in range(dims)]
+    max_size = [max(b.size(i) for b in batch) for i in range(dims)]
     size = (len(batch),) + tuple(max_size)
     canvas = batch[0].new_zeros(size=size)
     for i, b in enumerate(batch):

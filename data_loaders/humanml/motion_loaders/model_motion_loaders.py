@@ -51,11 +51,11 @@ def get_motion_loader(opt_path, batch_size, ground_truth_dataset, mm_num_samples
     opt = get_opt(opt_path, device)
 
     # Currently the configurations of two datasets are almost the same
-    if opt.dataset_name == 't2m' or opt.dataset_name == 'kit':
+    if opt.dataset_name in ['t2m', 'kit']:
         w_vectorizer = WordVectorizer('./glove', 'our_vab')
     else:
         raise KeyError('Dataset not recognized!!')
-    print('Generating %s ...' % opt.name)
+    print(f'Generating {opt.name} ...')
 
     if 'v6' in opt.name:
         dataset = CompV6GeneratedDataset(opt, ground_truth_dataset, w_vectorizer, mm_num_samples, mm_num_repeats)
@@ -76,7 +76,7 @@ def get_mdm_loader(model, diffusion, batch_size, ground_truth_loader, mm_num_sam
     opt = {
         'name': 'test',  # FIXME
     }
-    print('Generating %s ...' % opt['name'])
+    print(f"Generating {opt['name']} ...")
     # dataset = CompMDMGeneratedDataset(opt, ground_truth_dataset, ground_truth_dataset.w_vectorizer, mm_num_samples, mm_num_repeats)
     dataset = CompMDMGeneratedDataset(model, diffusion, ground_truth_loader, mm_num_samples, mm_num_repeats, max_motion_length, num_samples_limit, scale)
 
