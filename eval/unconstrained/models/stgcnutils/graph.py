@@ -140,8 +140,7 @@ class Graph:
                 if hop == 0:
                     A.append(a_root)
                 else:
-                    A.append(a_root + a_close)
-                    A.append(a_further)
+                    A.extend((a_root + a_close, a_further))
             A = np.stack(A)
             self.A = A
         else:
@@ -170,8 +169,7 @@ def normalize_digraph(A):
     for i in range(num_node):
         if Dl[i] > 0:
             Dn[i, i] = Dl[i]**(-1)
-    AD = np.dot(A, Dn)
-    return AD
+    return np.dot(A, Dn)
 
 
 def normalize_undigraph(A):
@@ -181,5 +179,4 @@ def normalize_undigraph(A):
     for i in range(num_node):
         if Dl[i] > 0:
             Dn[i, i] = Dl[i]**(-0.5)
-    DAD = np.dot(np.dot(Dn, A), Dn)
-    return DAD
+    return np.dot(np.dot(Dn, A), Dn)

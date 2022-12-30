@@ -26,7 +26,7 @@ class NewDataloader:
                 motions = motions.to(device)
                 if num_samples != -1 and len(self.batches) * dataiterator.batch_size > num_samples:
                     continue  # do not break because it confuses the multiple loaders
-                batch = dict()
+                batch = {}
                 if mode == "gen":
                     sample = sample_fn(model, motions.shape, clip_denoised=False, model_kwargs=model_kwargs)
                     batch['output'] = sample
@@ -112,19 +112,27 @@ def evaluate(args, model, diffusion, data):
             motionloader_unconstrained = new_data_loader(mode="gen", dataiterator=dataiterator_unconstrained, num_samples=num_samples_unconstrained)
 
             generated_motions = []
+            idx = [15, 12, 16, 18, 20, 17, 19, 21, 0, 1, 4, 7, 2, 5, 8]
             for motion in motionloader_unconstrained:
-                idx = [15, 12, 16, 18, 20, 17, 19, 21, 0, 1, 4, 7, 2, 5, 8]
                 motion = motion['output_xyz'][:, idx, :, :]
                 generated_motions.append(motion.cpu().numpy())
             generated_motions = np.concatenate(generated_motions)
             unconstrained_metrics = evaluate_unconstrained_metrics(generated_motions, device, fast=True)
-            unconstrained_metrics = {k+'_unconstrained': v for k, v in unconstrained_metrics.items()}
+            unconstrained_metrics = {
+                f'{k}_unconstrained': v
+                for k, v in unconstrained_metrics.items()
+            }
 
     except KeyboardInterrupt:
         string = "Saving the evaluation before exiting.."
         print(string)
 
-    metrics = {"feats": {key: [format_metrics(a2mmetrics[seed])[key] for seed in a2mmetrics.keys()] for key in a2mmetrics[allseeds[0]]}}
+    metrics = {
+        "feats": {
+            key: [format_metrics(a2mmetrics[seed])[key] for seed in a2mmetrics]
+            for key in a2mmetrics[allseeds[0]]
+        }
+    }
     if args.unconstrained:
         metrics["feats"] = {**metrics["feats"], **unconstrained_metrics}
 

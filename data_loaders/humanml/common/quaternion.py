@@ -199,11 +199,7 @@ def euler2quat(e, order, deg=True):
             r = rz
         else:
             raise
-        if result is None:
-            result = r
-        else:
-            result = qmul(result, r)
-
+        result = r if result is None else qmul(result, r)
     # Reverse antipodal representation to have a non-negative "w"
     if order in ['xyz', 'yzx', 'zxy']:
         result *= -1
@@ -259,11 +255,7 @@ def euler_to_quaternion(e, order):
             r = rz
         else:
             raise
-        if result is None:
-            result = r
-        else:
-            result = qmul_np(result, r)
-
+        result = r if result is None else qmul_np(result, r)
     # Reverse antipodal representation to have a non-negative "w"
     if order in ['xyz', 'yzx', 'zxy']:
         result *= -1
@@ -307,14 +299,12 @@ def quaternion_to_matrix_np(quaternions):
 
 def quaternion_to_cont6d_np(quaternions):
     rotation_mat = quaternion_to_matrix_np(quaternions)
-    cont_6d = np.concatenate([rotation_mat[..., 0], rotation_mat[..., 1]], axis=-1)
-    return cont_6d
+    return np.concatenate([rotation_mat[..., 0], rotation_mat[..., 1]], axis=-1)
 
 
 def quaternion_to_cont6d(quaternions):
     rotation_mat = quaternion_to_matrix(quaternions)
-    cont_6d = torch.cat([rotation_mat[..., 0], rotation_mat[..., 1]], dim=-1)
-    return cont_6d
+    return torch.cat([rotation_mat[..., 0], rotation_mat[..., 1]], dim=-1)
 
 
 def cont6d_to_matrix(cont6d):
@@ -332,8 +322,7 @@ def cont6d_to_matrix(cont6d):
     y = y[..., None]
     z = z[..., None]
 
-    mat = torch.cat([x, y, z], dim=-1)
-    return mat
+    return torch.cat([x, y, z], dim=-1)
 
 
 def cont6d_to_matrix_np(cont6d):

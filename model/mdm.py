@@ -37,7 +37,7 @@ class MDM(nn.Module):
         self.ablation = ablation
         self.activation = activation
         self.clip_dim = clip_dim
-        self.action_emb = kargs.get('action_emb', None)
+        self.action_emb = kargs.get('action_emb')
 
         self.input_feats = self.njoints * self.nfeats
 
@@ -170,10 +170,7 @@ class MDM(nn.Module):
             output = self.seqTransEncoder(xseq)[1:]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
 
         elif self.arch == 'trans_dec':
-            if self.emb_trans_dec:
-                xseq = torch.cat((emb, x), axis=0)
-            else:
-                xseq = x
+            xseq = torch.cat((emb, x), axis=0) if self.emb_trans_dec else x
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
             if self.emb_trans_dec:
                 output = self.seqTransDecoder(tgt=xseq, memory=emb)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
@@ -298,5 +295,4 @@ class EmbedAction(nn.Module):
 
     def forward(self, input):
         idx = input[:, 0].to(torch.long)  # an index array must be long
-        output = self.action_embedding[idx]
-        return output
+        return self.action_embedding[idx]

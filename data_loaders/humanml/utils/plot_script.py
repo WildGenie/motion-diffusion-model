@@ -19,7 +19,7 @@ def list_cut_average(ll, intervals):
     for i in range(bins):
         l_low = intervals * i
         l_high = l_low + intervals
-        l_high = l_high if l_high < len(ll) else len(ll)
+        l_high = min(l_high, len(ll))
         ll_new.append(np.mean(ll[l_low:l_high]))
     return ll_new
 
@@ -109,10 +109,7 @@ def plot_3d_motion(save_path, kinematic_tree, joints, title, dataset, figsize=(3
 
         used_colors = colors_blue if index in gt_frames else colors
         for i, (chain, color) in enumerate(zip(kinematic_tree, used_colors)):
-            if i < 5:
-                linewidth = 4.0
-            else:
-                linewidth = 2.0
+            linewidth = 4.0 if i < 5 else 2.0
             ax.plot3D(data[index, chain, 0], data[index, chain, 1], data[index, chain, 2], linewidth=linewidth,
                       color=color)
         #         print(trajec[:index, 0].shape)

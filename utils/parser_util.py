@@ -31,7 +31,9 @@ def parse_and_load_from_model(parser):
             setattr(args, 'unconstrained', unconstrained)
 
         else:
-            print('Warning: was not able to load [{}], using default value [{}] instead.'.format(a, args.__dict__[a]))
+            print(
+                f'Warning: was not able to load [{a}], using default value [{args.__dict__[a]}] instead.'
+            )
 
     if args.cond_mask_prob == 0:
         args.guidance_param = 1

@@ -109,7 +109,7 @@ class MaxMixturePrior(nn.Module):
         elif dtype == torch.float64:
             np_dtype = np.float64
         else:
-            print('Unknown float type {}, exiting!'.format(dtype))
+            print(f'Unknown float type {dtype}, exiting!')
             sys.exit(-1)
 
         self.num_gaussians = num_gaussians
@@ -119,8 +119,9 @@ class MaxMixturePrior(nn.Module):
 
         full_gmm_fn = os.path.join(prior_folder, gmm_fn)
         if not os.path.exists(full_gmm_fn):
-            print('The path to the mixture prior "{}"'.format(full_gmm_fn) +
-                  ' does not exist, exiting!')
+            print(
+                f'The path to the mixture prior "{full_gmm_fn}" does not exist, exiting!'
+            )
             sys.exit(-1)
 
         with open(full_gmm_fn, 'rb') as f:
@@ -135,7 +136,7 @@ class MaxMixturePrior(nn.Module):
             covs = gmm.covars_.astype(np_dtype)
             weights = gmm.weights_.astype(np_dtype)
         else:
-            print('Unknown type for the prior: {}, exiting!'.format(type(gmm)))
+            print(f'Unknown type for the prior: {type(gmm)}, exiting!')
             sys.exit(-1)
 
         self.register_buffer('means', torch.tensor(means, dtype=dtype))
@@ -174,8 +175,7 @@ class MaxMixturePrior(nn.Module):
 
     def get_mean(self):
         ''' Returns the mean of the mixture '''
-        mean_pose = torch.matmul(self.weights, self.means)
-        return mean_pose
+        return torch.matmul(self.weights, self.means)
 
     def merged_log_likelihood(self, pose, betas):
         diff_from_mean = pose.unsqueeze(dim=1) - self.means

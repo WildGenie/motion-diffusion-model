@@ -98,21 +98,21 @@ class UESTC(Dataset):
 
         num_frames_video = np.minimum(num_frames_video, num_frames_method)
         num_frames_video = num_frames_video.astype(int)
-        self._num_frames_in_video = [x for x in num_frames_video]
+        self._num_frames_in_video = list(num_frames_video)
 
         N = len(videos)
         self._actions = np.zeros(N, dtype=int)
         for ind in range(N):
             self._actions[ind] = self.parse_action(videos[ind])
 
-        self._actions = [x for x in self._actions]
+        self._actions = list(self._actions)
 
         total_num_actions = 40
         self.num_actions = total_num_actions
         keep_actions = np.arange(0, total_num_actions)
 
         self._action_to_label = {x: i for i, x in enumerate(keep_actions)}
-        self._label_to_action = {i: x for i, x in enumerate(keep_actions)}
+        self._label_to_action = dict(enumerate(keep_actions))
         self.num_classes = len(keep_actions)
 
         self._train = []
@@ -136,9 +136,8 @@ class UESTC(Dataset):
                                       "view": view,
                                       "subject": subject,
                                       "side": side})
-            if self.view == "frontview":
-                if side != 1:
-                    continue
+            if self.view == "frontview" and side != 1:
+                continue
             # rotate to front view
             if side != 1:
                 # don't take the view 8 in side 2
@@ -162,15 +161,11 @@ class UESTC(Dataset):
             else:
                 raise ValueError("This subject doesn't belong to any set.")
 
-            # if index > 200:
-            #     break
+                # if index > 200:
+                #     break
 
         # Select only sequences which have a minimum number of frames
-        if self.num_frames > 0:
-            threshold = self.num_frames*3/4
-        else:
-            threshold = 0
-
+        threshold = self.num_frames*3/4 if self.num_frames > 0 else 0
         method_extracted_ix = np.where(num_frames_video >= threshold)[0].tolist()
         self._train = list(set(self._train) & set(method_extracted_ix))
         # keep the test set without modification
@@ -187,17 +182,14 @@ class UESTC(Dataset):
         if len(self._joints[ind]) == 0:
             raise ValueError(
                 f"Cannot load index {ind} in _load_joints3D function.")
-        if self._jointsIx is not None:
-            joints3D = self._joints[ind][frame_ix][:, self._jointsIx]
-        else:
-            joints3D = self._joints[ind][frame_ix]
-
-        return joints3D
+        return (
+            self._joints[ind][frame_ix][:, self._jointsIx]
+            if self._jointsIx is not None
+            else self._joints[ind][frame_ix]
+        )
 
     def _load_rotvec(self, ind, frame_ix):
-        # 72 dim smpl
-        pose = self._pose[ind][frame_ix, :].reshape(-1, 24, 3)
-        return pose
+        return self._pose[ind][frame_ix, :].reshape(-1, 24, 3)
 
     def _get_action_view_subject_side(self, videopath):
         # TODO: Can be moved to tools.py
@@ -216,10 +208,7 @@ class UESTC(Dataset):
     def parse_action(self, path, return_int=True):
         # Override parent method
         info, _, _, _ = self._get_action_view_subject_side(path)
-        if return_int:
-            return int(info)
-        else:
-            return info
+        return int(info) if return_int else info
 
 
 if __name__ == "__main__":

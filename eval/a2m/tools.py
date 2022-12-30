@@ -2,10 +2,7 @@ import yaml
 
 
 def format_metrics(metrics, formatter="{:.6}"):
-    newmetrics = {}
-    for key, val in metrics.items():
-        newmetrics[key] = formatter.format(val)
-    return newmetrics
+    return {key: formatter.format(val) for key, val in metrics.items()}
 
 
 def save_metrics(path, metrics):

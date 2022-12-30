@@ -7,36 +7,34 @@ def calculate_diversity(activations):
     diversity_times = 200
     num_motions = len(activations)
 
-    diversity = 0
-
     first_indices = np.random.randint(0, num_motions, diversity_times)
     second_indices = np.random.randint(0, num_motions, diversity_times)
-    for first_idx, second_idx in zip(first_indices, second_indices):
-        diversity += torch.dist(activations[first_idx, :],
-                                activations[second_idx, :])
+    diversity = sum(
+        torch.dist(activations[first_idx, :], activations[second_idx, :])
+        for first_idx, second_idx in zip(first_indices, second_indices)
+    )
     diversity /= diversity_times
     return diversity
 
 # from action2motion
 def calculate_diversity_multimodality(activations, labels, num_labels, unconstrained = False):
     diversity_times = 200
-    multimodality_times = 20
     if not unconstrained:
         labels = labels.long()
     num_motions = activations.shape[0]  # len(labels)
 
-    diversity = 0
-        
     first_indices = np.random.randint(0, num_motions, diversity_times)
     second_indices = np.random.randint(0, num_motions, diversity_times)
-    for first_idx, second_idx in zip(first_indices, second_indices):
-        diversity += torch.dist(activations[first_idx, :],
-                                activations[second_idx, :])
+    diversity = sum(
+        torch.dist(activations[first_idx, :], activations[second_idx, :])
+        for first_idx, second_idx in zip(first_indices, second_indices)
+    )
     diversity /= diversity_times
 
     if not unconstrained:
         multimodality = 0
         label_quotas = np.zeros(num_labels)
+        multimodality_times = 20
         label_quotas[labels.unique()] = multimodality_times  # if a label does not appear in batch, its quota remains zero
         while np.any(label_quotas > 0):
             # print(label_quotas)

@@ -32,7 +32,7 @@ class STGCN(nn.Module):
 
         self.device = device
         self.num_class = num_class
-        
+
         self.losses = ["accuracy", "cross_entropy", "mixed"]
         self.criterion = torch.nn.CrossEntropyLoss(reduction='mean')
 
@@ -64,10 +64,12 @@ class STGCN(nn.Module):
 
         # initialize parameters for edge importance weighting
         if edge_importance_weighting:
-            self.edge_importance = nn.ParameterList([
-                nn.Parameter(torch.ones(self.A.size()))
-                for i in self.st_gcn_networks
-            ])
+            self.edge_importance = nn.ParameterList(
+                [
+                    nn.Parameter(torch.ones(self.A.size()))
+                    for _ in self.st_gcn_networks
+                ]
+            )
         else:
             self.edge_importance = [1] * len(self.st_gcn_networks)
 
@@ -119,8 +121,7 @@ class STGCN(nn.Module):
         ygt = batch["y"]
         for label, pred in zip(ygt, yhat):
             confusion[label][pred] += 1
-        accuracy = torch.trace(confusion)/torch.sum(confusion)
-        return accuracy
+        return torch.trace(confusion)/torch.sum(confusion)
     
     def compute_loss(self, batch):
         cross_entropy = self.criterion(batch["yhat"], batch["y"])

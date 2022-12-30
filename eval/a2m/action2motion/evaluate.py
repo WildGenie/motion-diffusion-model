@@ -22,7 +22,7 @@ class A2MEvaluation:
         activations = []
         labels = []
         with torch.no_grad():
-            for idx, batch in enumerate(motionloader):
+            for batch in motionloader:
                 activations.append(self.gru_classifier_for_fid(batch["output_xyz"], lengths=batch["lengths"]))
                 if model.cond_mode != 'no_cond':
                     labels.append(batch["y"])

@@ -41,11 +41,9 @@ class Dataset(torch.utils.data.Dataset):
 
     def label_to_action(self, label):
         import numbers
-        if isinstance(label, numbers.Integral):
-            return self._label_to_action[label]
-        else:  # if it is one hot vector
+        if not isinstance(label, numbers.Integral):
             label = np.argmax(label)
-            return self._label_to_action[label]
+        return self._label_to_action[label]
 
     def get_pose_data(self, data_index, frame_ix):
         pose = self._load(data_index, frame_ix)
@@ -70,69 +68,68 @@ class Dataset(torch.utils.data.Dataset):
             assert list(self._action_classes.keys()) == list(range(len(all_action_names)))  # the keys should be ordered from 0 to num_actions
 
         sorter = np.argsort(all_action_names)
-        actions = sorter[np.searchsorted(all_action_names, action_name, sorter=sorter)]
-        return actions
+        return sorter[np.searchsorted(all_action_names, action_name, sorter=sorter)]
 
     def __getitem__(self, index):
-        if self.split == 'train':
-            data_index = self._train[index]
-        else:
-            data_index = self._test[index]
-
+        data_index = self._train[index] if self.split == 'train' else self._test[index]
         # inp, target = self._get_item_data_index(data_index)
         # return inp, target
         return self._get_item_data_index(data_index)
 
     def _load(self, ind, frame_ix):
         pose_rep = self.pose_rep
-        if pose_rep == "xyz" or self.translation:
-            if getattr(self, "_load_joints3D", None) is not None:
-                # Locate the root joint of initial pose at origin
-                joints3D = self._load_joints3D(ind, frame_ix)
-                joints3D = joints3D - joints3D[0, 0, :]
-                ret = to_torch(joints3D)
-                if self.translation:
-                    ret_tr = ret[:, 0, :]
-            else:
-                if pose_rep == "xyz":
-                    raise ValueError("This representation is not possible.")
-                if getattr(self, "_load_translation") is None:
-                    raise ValueError("Can't extract translations.")
-                ret_tr = self._load_translation(ind, frame_ix)
-                ret_tr = to_torch(ret_tr - ret_tr[0])
+        if (
+            pose_rep == "xyz"
+            and getattr(self, "_load_joints3D", None) is not None
+            or pose_rep != "xyz"
+            and self.translation
+            and getattr(self, "_load_joints3D", None) is not None
+        ):
+            # Locate the root joint of initial pose at origin
+            joints3D = self._load_joints3D(ind, frame_ix)
+            joints3D = joints3D - joints3D[0, 0, :]
+            ret = to_torch(joints3D)
+            if self.translation:
+                ret_tr = ret[:, 0, :]
+        elif pose_rep == "xyz":
+            raise ValueError("This representation is not possible.")
+        elif self.translation:
+            if getattr(self, "_load_translation") is None:
+                raise ValueError("Can't extract translations.")
+            ret_tr = self._load_translation(ind, frame_ix)
+            ret_tr = to_torch(ret_tr - ret_tr[0])
 
         if pose_rep != "xyz":
             if getattr(self, "_load_rotvec", None) is None:
                 raise ValueError("This representation is not possible.")
-            else:
-                pose = self._load_rotvec(ind, frame_ix)
-                if not self.glob:
-                    pose = pose[:, 1:, :]
-                pose = to_torch(pose)
-                if self.align_pose_frontview:
-                    first_frame_root_pose_matrix = geometry.axis_angle_to_matrix(pose[0][0])
-                    all_root_poses_matrix = geometry.axis_angle_to_matrix(pose[:, 0, :])
-                    aligned_root_poses_matrix = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1),
-                                                             all_root_poses_matrix)
-                    pose[:, 0, :] = geometry.matrix_to_axis_angle(aligned_root_poses_matrix)
+            pose = self._load_rotvec(ind, frame_ix)
+            if not self.glob:
+                pose = pose[:, 1:, :]
+            pose = to_torch(pose)
+            if self.align_pose_frontview:
+                first_frame_root_pose_matrix = geometry.axis_angle_to_matrix(pose[0][0])
+                all_root_poses_matrix = geometry.axis_angle_to_matrix(pose[:, 0, :])
+                aligned_root_poses_matrix = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1),
+                                                         all_root_poses_matrix)
+                pose[:, 0, :] = geometry.matrix_to_axis_angle(aligned_root_poses_matrix)
 
-                    if self.translation:
-                        ret_tr = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1).float(),
-                                              torch.transpose(ret_tr, 0, 1))
-                        ret_tr = torch.transpose(ret_tr, 0, 1)
+                if self.translation:
+                    ret_tr = torch.matmul(torch.transpose(first_frame_root_pose_matrix, 0, 1).float(),
+                                          torch.transpose(ret_tr, 0, 1))
+                    ret_tr = torch.transpose(ret_tr, 0, 1)
 
-                if pose_rep == "rotvec":
-                    ret = pose
-                elif pose_rep == "rotmat":
-                    ret = geometry.axis_angle_to_matrix(pose).view(*pose.shape[:2], 9)
-                elif pose_rep == "rotquat":
-                    ret = geometry.axis_angle_to_quaternion(pose)
-                elif pose_rep == "rot6d":
-                    ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(pose))
-        if pose_rep != "xyz" and self.translation:
-            padded_tr = torch.zeros((ret.shape[0], ret.shape[2]), dtype=ret.dtype)
-            padded_tr[:, :3] = ret_tr
-            ret = torch.cat((ret, padded_tr[:, None]), 1)
+            if pose_rep == "rotvec":
+                ret = pose
+            elif pose_rep == "rotmat":
+                ret = geometry.axis_angle_to_matrix(pose).view(*pose.shape[:2], 9)
+            elif pose_rep == "rotquat":
+                ret = geometry.axis_angle_to_quaternion(pose)
+            elif pose_rep == "rot6d":
+                ret = geometry.matrix_to_rotation_6d(geometry.axis_angle_to_matrix(pose))
+            if self.translation:
+                padded_tr = torch.zeros((ret.shape[0], ret.shape[2]), dtype=ret.dtype)
+                padded_tr[:, :3] = ret_tr
+                ret = torch.cat((ret, padded_tr[:, None]), 1)
         ret = ret.permute(1, 2, 0).contiguous()
         return ret.float()
 
@@ -145,11 +142,7 @@ class Dataset(torch.utils.data.Dataset):
             if self.num_frames == -2:
                 if self.min_len <= 0:
                     raise ValueError("You should put a min_len > 0 for num_frames == -2 mode")
-                if self.max_len != -1:
-                    max_frame = min(nframes, self.max_len)
-                else:
-                    max_frame = nframes
-
+                max_frame = min(nframes, self.max_len) if self.max_len != -1 else nframes
                 num_frames = random.randint(self.min_len, max(max_frame, self.min_len))
             else:
                 num_frames = self.num_frames if self.num_frames != -1 else self.max_len
@@ -209,11 +202,7 @@ class Dataset(torch.utils.data.Dataset):
         if self.num_frames != -1:
             return self.num_frames
 
-        if self.split == 'train':
-            index = self._train
-        else:
-            index = self._test
-
+        index = self._train if self.split == 'train' else self._test
         action = self.label_to_action(label)
         choices = np.argwhere(self._actions[index] == action).squeeze(1)
         lengths = self._num_frames_in_video[np.array(index)[choices]]
@@ -248,8 +237,7 @@ class Dataset(torch.utils.data.Dataset):
                 self._original_train = self._train
             else:
                 self._train = self._original_train
+        elif self._original_test is None:
+            self._original_test = self._test
         else:
-            if self._original_test is None:
-                self._original_test = self._test
-            else:
-                self._test = self._original_test
+            self._test = self._original_test

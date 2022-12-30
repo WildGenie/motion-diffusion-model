@@ -140,9 +140,9 @@ def _axis_angle_rotation(axis: str, angle):
 
     if axis == "X":
         R_flat = (one, zero, zero, zero, cos, -sin, zero, sin, cos)
-    if axis == "Y":
+    elif axis == "Y":
         R_flat = (cos, zero, sin, zero, one, zero, -sin, zero, cos)
-    if axis == "Z":
+    elif axis == "Z":
         R_flat = (cos, -sin, zero, sin, cos, zero, zero, zero, one)
 
     return torch.stack(R_flat, -1).reshape(angle.shape + (3, 3))
@@ -473,10 +473,10 @@ def axis_angle_to_quaternion(axis_angle):
     sin_half_angles_over_angles[small_angles] = (
         0.5 - (angles[small_angles] * angles[small_angles]) / 48
     )
-    quaternions = torch.cat(
-        [torch.cos(half_angles), axis_angle * sin_half_angles_over_angles], dim=-1
+    return torch.cat(
+        [torch.cos(half_angles), axis_angle * sin_half_angles_over_angles],
+        dim=-1,
     )
-    return quaternions
 
 
 def quaternion_to_axis_angle(quaternions):

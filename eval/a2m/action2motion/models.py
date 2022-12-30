@@ -33,9 +33,7 @@ class MotionDiscriminator(nn.Module):
         # dim (num_samples, 30)
         lin1 = self.linear1(out)
         lin1 = torch.tanh(lin1)
-        # dim (num_samples, output_size)
-        lin2 = self.linear2(lin1)
-        return lin2
+        return self.linear2(lin1)
 
     def initHidden(self, num_samples, layer):
         return torch.randn(layer, num_samples, self.hidden_size, device=self.device, requires_grad=False)

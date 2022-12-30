@@ -16,8 +16,7 @@ def euclidean_distance_matrix(matrix1, matrix2):
     d1 = -2 * np.dot(matrix1, matrix2.T)    # shape (num_test, num_train)
     d2 = np.sum(np.square(matrix1), axis=1, keepdims=True)    # shape (num_test, 1)
     d3 = np.sum(np.square(matrix2), axis=1)     # shape (num_train, )
-    dists = np.sqrt(d1 + d2 + d3)  # broadcasting
-    return dists
+    return np.sqrt(d1 + d2 + d3)
 
 def calculate_top_k(mat, top_k):
     size = mat.shape[0]
@@ -30,18 +29,14 @@ def calculate_top_k(mat, top_k):
         correct_vec = (correct_vec | bool_mat[:, i])
         # print(correct_vec)
         top_k_list.append(correct_vec[:, None])
-    top_k_mat = np.concatenate(top_k_list, axis=1)
-    return top_k_mat
+    return np.concatenate(top_k_list, axis=1)
 
 
 def calculate_R_precision(embedding1, embedding2, top_k, sum_all=False):
     dist_mat = euclidean_distance_matrix(embedding1, embedding2)
     argmax = np.argsort(dist_mat, axis=1)
     top_k_mat = calculate_top_k(argmax, top_k)
-    if sum_all:
-        return top_k_mat.sum(axis=0)
-    else:
-        return top_k_mat
+    return top_k_mat.sum(axis=0) if sum_all else top_k_mat
 
 
 def calculate_matching_score(embedding1, embedding2, sum_all=False):
@@ -50,10 +45,7 @@ def calculate_matching_score(embedding1, embedding2, sum_all=False):
     assert embedding1.shape[1] == embedding2.shape[1]
 
     dist = linalg.norm(embedding1 - embedding2, axis=1)
-    if sum_all:
-        return dist.sum(axis=0)
-    else:
-        return dist
+    return dist.sum(axis=0) if sum_all else dist
 
 
 
@@ -137,7 +129,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     if np.iscomplexobj(covmean):
         if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
             m = np.max(np.abs(covmean.imag))
-            raise ValueError('Imaginary component {}'.format(m))
+            raise ValueError(f'Imaginary component {m}')
         covmean = covmean.real
 
     tr_covmean = np.trace(covmean)

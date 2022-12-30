@@ -21,15 +21,15 @@ def evaluate_matching_score(eval_wrapper, motion_loaders, file):
     R_precision_dict = OrderedDict({})
     activation_dict = OrderedDict({})
     print('========== Evaluating Matching Score ==========')
+    score_list = []
     for motion_loader_name, motion_loader in motion_loaders.items():
         all_motion_embeddings = []
-        score_list = []
         all_size = 0
         matching_score_sum = 0
         top_k_count = 0
         # print(motion_loader_name)
         with torch.no_grad():
-            for idx, batch in enumerate(motion_loader):
+            for batch in motion_loader:
                 word_embeddings, pos_one_hots, _, sent_lens, motions, m_lens, _ = batch
                 text_embeddings, motion_embeddings = eval_wrapper.get_co_embeddings(
                     word_embs=word_embeddings,
@@ -74,7 +74,7 @@ def evaluate_fid(eval_wrapper, groundtruth_loader, activation_dict, file):
     gt_motion_embeddings = []
     print('========== Evaluating FID ==========')
     with torch.no_grad():
-        for idx, batch in enumerate(groundtruth_loader):
+        for batch in groundtruth_loader:
             _, _, _, sent_lens, motions, m_lens, _ = batch
             motion_embeddings = eval_wrapper.get_motion_embeddings(
                 motions=motions,
@@ -112,12 +112,12 @@ def evaluate_multimodality(eval_wrapper, mm_motion_loaders, file, mm_num_times):
     for model_name, mm_motion_loader in mm_motion_loaders.items():
         mm_motion_embeddings = []
         with torch.no_grad():
-            for idx, batch in enumerate(mm_motion_loader):
+            for batch in mm_motion_loader:
                 # (1, mm_replications, dim_pos)
                 motions, m_lens = batch
                 motion_embedings = eval_wrapper.get_motion_embeddings(motions[0], m_lens[0])
                 mm_motion_embeddings.append(motion_embedings.unsqueeze(0))
-        if len(mm_motion_embeddings) == 0:
+        if not mm_motion_embeddings:
             multimodality = 0
         else:
             mm_motion_embeddings = torch.cat(mm_motion_embeddings, dim=0).cpu().numpy()
@@ -143,9 +143,8 @@ def evaluation(eval_wrapper, gt_loader, eval_motion_loaders, log_file, replicati
                                    'Diversity': OrderedDict({}),
                                    'MultiModality': OrderedDict({})})
         for replication in range(replication_times):
-            motion_loaders = {}
             mm_motion_loaders = {}
-            motion_loaders['ground truth'] = gt_loader
+            motion_loaders = {'ground truth': gt_loader}
             for motion_loader_name, motion_loader_getter in eval_motion_loaders.items():
                 motion_loader, mm_motion_loader = motion_loader_getter()
                 motion_loaders[motion_loader_name] = motion_loader
@@ -170,8 +169,8 @@ def evaluation(eval_wrapper, gt_loader, eval_motion_loaders, log_file, replicati
                 print(f'Time: {datetime.now()}', file=f, flush=True)
                 mm_score_dict = evaluate_multimodality(eval_wrapper, mm_motion_loaders, f, mm_num_times)
 
-            print(f'!!! DONE !!!')
-            print(f'!!! DONE !!!', file=f, flush=True)
+            print('!!! DONE !!!')
+            print('!!! DONE !!!', file=f, flush=True)
 
             for key, item in mat_score_dict.items():
                 if key not in all_metrics['Matching Score']:
@@ -207,14 +206,14 @@ def evaluation(eval_wrapper, gt_loader, eval_motion_loaders, log_file, replicati
         # print(all_metrics['Diversity'])
         mean_dict = {}
         for metric_name, metric_dict in all_metrics.items():
-            print('========== %s Summary ==========' % metric_name)
-            print('========== %s Summary ==========' % metric_name, file=f, flush=True)
+            print(f'========== {metric_name} Summary ==========')
+            print(f'========== {metric_name} Summary ==========', file=f, flush=True)
             for model_name, values in metric_dict.items():
                 # print(metric_name, model_name)
                 mean, conf_interval = get_metric_statistics(np.array(values), replication_times)
-                mean_dict[metric_name + '_' + model_name] = mean
+                mean_dict[f'{metric_name}_{model_name}'] = mean
                 # print(mean, mean.dtype)
-                if isinstance(mean, np.float64) or isinstance(mean, np.float32):
+                if isinstance(mean, (np.float64, np.float32)):
                     print(f'---> [{model_name}] Mean: {mean:.4f} CInterval: {conf_interval:.4f}')
                     print(f'---> [{model_name}] Mean: {mean:.4f} CInterval: {conf_interval:.4f}', file=f, flush=True)
                 elif isinstance(mean, np.ndarray):
@@ -232,7 +231,9 @@ if __name__ == '__main__':
     args.batch_size = 32 # This must be 32! Don't change it! otherwise it will cause a bug in R precision calc!
     name = os.path.basename(os.path.dirname(args.model_path))
     niter = os.path.basename(args.model_path).replace('model', '').replace('.pt', '')
-    log_file = os.path.join(os.path.dirname(args.model_path), 'eval_humanml_{}_{}'.format(name, niter))
+    log_file = os.path.join(
+        os.path.dirname(args.model_path), f'eval_humanml_{name}_{niter}'
+    )
     if args.guidance_param != 1.:
         log_file += f'_gscale{args.guidance_param}'
     log_file += f'_{args.eval_mode}'

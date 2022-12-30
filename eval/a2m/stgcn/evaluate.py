@@ -37,7 +37,7 @@ class Evaluation:
         activations = []
         labels = []
         with torch.no_grad():
-            for idx, batch in enumerate(motionloader):
+            for batch in motionloader:
                 activations.append(self.model(batch)["features"])
                 if model.cond_mode != 'no_cond':
                     labels.append(batch["y"])

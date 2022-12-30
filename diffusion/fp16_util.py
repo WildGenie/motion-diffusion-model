@@ -114,15 +114,13 @@ def master_params_to_state_dict(
 
 
 def state_dict_to_master_params(model, state_dict, use_fp16):
-    if use_fp16:
-        named_model_params = [
-            (name, state_dict[name]) for name, _ in model.named_parameters()
-        ]
-        param_groups_and_shapes = get_param_groups_and_shapes(named_model_params)
-        master_params = make_master_params(param_groups_and_shapes)
-    else:
-        master_params = [state_dict[name] for name, _ in model.named_parameters()]
-    return master_params
+    if not use_fp16:
+        return [state_dict[name] for name, _ in model.named_parameters()]
+    named_model_params = [
+        (name, state_dict[name]) for name, _ in model.named_parameters()
+    ]
+    param_groups_and_shapes = get_param_groups_and_shapes(named_model_params)
+    return make_master_params(param_groups_and_shapes)
 
 
 def zero_master_grads(master_params):
@@ -139,10 +137,7 @@ def zero_grad(model_params):
 
 
 def param_grad_or_zeros(param):
-    if param.grad is not None:
-        return param.grad.data.detach()
-    else:
-        return th.zeros_like(param)
+    return th.zeros_like(param) if param.grad is None else param.grad.data.detach()
 
 
 class MixedPrecisionTrainer:

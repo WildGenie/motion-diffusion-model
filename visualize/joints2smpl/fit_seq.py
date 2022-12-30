@@ -41,7 +41,7 @@ opt = parser.parse_args()
 print(opt)
 
 # ---load predefined something
-device = torch.device("cuda:" + str(opt.gpu_ids) if opt.cuda else "cpu")
+device = torch.device(f"cuda:{str(opt.gpu_ids)}" if opt.cuda else "cpu")
 print(config.SMPL_MODEL_DIR)
 smplmodel = smplx.create(config.SMPL_MODEL_DIR, 
                          model_type="smpl", gender="neutral", ext="pkl",
@@ -68,10 +68,10 @@ smplify = SMPLify3D(smplxmodel=smplmodel,
                     device=device)
 #print("initialize SMPLify3D done!")
 
-    
+
 purename = os.path.splitext(opt.files)[0]
 # --- load data ---
-data = np.load(opt.data_folder + "/" + purename + ".npy")  # [nframes, njoints, 3]
+data = np.load(f"{opt.data_folder}/{purename}.npy")
 
 dir_save = os.path.join(opt.save_folder, purename)
 if not os.path.isdir(dir_save):
@@ -91,11 +91,11 @@ for idx in tqdm(range(num_seqs)):
 		pred_pose[0, :] = init_mean_pose
 		pred_cam_t[0, :] = cam_trans_zero
 	else:
-		data_param = joblib.load(dir_save + "/" + "%04d"%(idx-1) + ".pkl")
+		data_param = joblib.load(f"{dir_save}/" + "%04d"%(idx-1) + ".pkl")
 		pred_betas[0, :] = torch.from_numpy(data_param['beta']).unsqueeze(0).float()
 		pred_pose[0, :] = torch.from_numpy(data_param['pose']).unsqueeze(0).float()
 		pred_cam_t[0, :] = torch.from_numpy(data_param['cam']).unsqueeze(0).float()
-		
+
 	if opt.joint_category =="AMASS":
 		confidence_input =  torch.ones(opt.num_joints)
 		# make sure the foot and ankle
@@ -106,7 +106,7 @@ for idx in tqdm(range(num_seqs)):
 			confidence_input[11] = 1.5
 	else:
 		print("Such category not settle down!")
-	  
+
 	# ----- from initial to fitting -------
 	new_opt_vertices, new_opt_joints, new_opt_pose, new_opt_betas, \
 	new_opt_cam_t, new_opt_joint_loss = smplify(
@@ -122,11 +122,10 @@ for idx in tqdm(range(num_seqs)):
 	outputp = smplmodel(betas=new_opt_betas, global_orient=new_opt_pose[:, :3], body_pose=new_opt_pose[:, 3:],
 						transl=new_opt_cam_t, return_verts=True)
 	mesh_p = trimesh.Trimesh(vertices=outputp.vertices.detach().cpu().numpy().squeeze(), faces=smplmodel.faces, process=False)
-	mesh_p.export(dir_save + "/" + "%04d"%idx + ".ply")
-	
+	mesh_p.export(f"{dir_save}/" + "%04d"%idx + ".ply")
+
 	# save the pkl
-	param = {}
-	param['beta'] = new_opt_betas.detach().cpu().numpy()
+	param = {'beta': new_opt_betas.detach().cpu().numpy()}
 	param['pose'] = new_opt_pose.detach().cpu().numpy()
 	param['cam'] = new_opt_cam_t.detach().cpu().numpy()
-	joblib.dump(param, dir_save + "/" + "%04d"%idx + ".pkl", compress=3)
+	joblib.dump(param, f"{dir_save}/" + "%04d"%idx + ".pkl", compress=3)

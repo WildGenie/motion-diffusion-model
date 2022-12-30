@@ -27,7 +27,7 @@ def guess_init_3d(model_joints,
     # get the indexed four
     gt_joints = ['RHip', 'LHip', 'RShoulder', 'LShoulder']
     gt_joints_ind = [config.JOINT_MAP[joint] for joint in gt_joints]
-    
+
     if joints_category=="orig":
         joints_ind_category = [config.JOINT_MAP[joint] for joint in gt_joints]
     elif joints_category=="AMASS":
@@ -36,8 +36,7 @@ def guess_init_3d(model_joints,
         print("NO SUCH JOINTS CATEGORY!") 
 
     sum_init_t = (j3d[:, joints_ind_category] - model_joints[:, gt_joints_ind]).sum(dim=1)
-    init_t = sum_init_t / 4.0
-    return init_t
+    return sum_init_t / 4.0
 
 
 # SMPLIfy 3D

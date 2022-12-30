@@ -42,13 +42,11 @@ def compute_features(model, iterator, device):
     activations = []
     predictions = []
     with torch.no_grad():
-        for i, batch in enumerate(iterator):
-            batch_for_model = {}
-            batch_for_model['x'] = batch.to(device).float()
+        for batch in iterator:
+            batch_for_model = {'x': batch.to(device).float()}
             model(batch_for_model)
             activations.append(batch_for_model['features'])
             predictions.append(batch_for_model['yhat'])
-            # labels.append(batch_for_model['y'])
         activations = torch.cat(activations, dim=0)
         predictions = torch.cat(predictions, dim=0)
     return activations, predictions
@@ -105,7 +103,12 @@ def evaluate_unconstrained_metrics(generated_motions, device, fast):
         print(f"precision: {precision}")
         print(f"recall: {recall}\n")
 
-    metrics = {'fid': fid, 'kid': kid[0], 'diversity_gen': generated_diversity.cpu().item(), 'diversity_gt':  dataset_diversity.cpu().item(),
-                 'precision': precision, 'recall':recall}
-    return metrics
+    return {
+        'fid': fid,
+        'kid': kid[0],
+        'diversity_gen': generated_diversity.cpu().item(),
+        'diversity_gt': dataset_diversity.cpu().item(),
+        'precision': precision,
+        'recall': recall,
+    }
 
